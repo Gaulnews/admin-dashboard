@@ -14,8 +14,6 @@ import {
 import { count, eq, ilike } from 'drizzle-orm';
 import { createInsertSchema } from 'drizzle-zod';
 
-export const db = drizzle(neon(process.env.POSTGRES_URL!));
-
 export const statusEnum = pgEnum('status', ['active', 'inactive', 'archived']);
 
 export const products = pgTable('products', {
@@ -31,6 +29,12 @@ export const products = pgTable('products', {
 export type SelectProduct = typeof products.$inferSelect;
 export const insertProductSchema = createInsertSchema(products);
 
+function getDb() {
+  const url = process.env.POSTGRES_URL;
+  if (!url) throw new Error('POSTGRES_URL not set');
+  return drizzle(neon(url));
+}
+
 export async function getProducts(
   search: string,
   offset: number
@@ -39,7 +43,7 @@ export async function getProducts(
   newOffset: number | null;
   totalProducts: number;
 }> {
-  // Always search the full table, not per page
+  const db = getDb();
   if (search) {
     return {
       products: await db
@@ -68,5 +72,8 @@ export async function getProducts(
 }
 
 export async function deleteProductById(id: number) {
+  const db = getDb();
   await db.delete(products).where(eq(products.id, id));
 }
+
+export { getDb as db };
